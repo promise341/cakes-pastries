@@ -18,6 +18,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <style>
         body { font-family: 'DM Sans', sans-serif; background-color: #FDF6EC; }
         .font-display { font-family: 'Playfair Display', Georgia, serif; }
@@ -56,7 +57,18 @@
             <div class="hidden md:flex items-center gap-7">
                 <a href="{{ route('home') }}" class="nav-link {{ request()->routeIs('home') ? 'active' : '' }}">Home</a>
                 <a href="{{ route('products.index') }}" class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">Products</a>
-                <a href="{{ route('order.track') }}" class="nav-link">Track Order</a>
+                <a href="{{ route('order.track') }}" class="nav-link {{ request()->routeIs('order.track') ? 'active' : '' }}">Track Order</a>
+                @guest
+                    <a href="{{ route('login') }}" class="nav-link {{ request()->routeIs('login') ? 'active' : '' }}">Login</a>
+                    <a href="{{ route('register') }}" class="nav-link {{ request()->routeIs('register') ? 'active' : '' }}">Register</a>
+                @else
+                    @if(auth()->user()->isAdmin())
+                        <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">Admin Console</a>
+                    @else
+                        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">My Dashboard</a>
+                    @endif
+                    <a href="javascript:void(0)" onclick="document.getElementById('logoutForm').submit()" class="nav-link">Logout</a>
+                @endguest
             </div>
 
             <div class="flex items-center gap-4">
@@ -76,14 +88,29 @@
                 </button>
             </div>
         </div>
-        <div id="mobileMenu" class="hidden md:hidden pb-4 pt-3" style="border-top:1px solid #6B3A1F">
+        <div id="mobileMenu" class="hidden md:hidden pb-4 pt-3 space-y-1" style="border-top:1px solid #6B3A1F">
             <a href="{{ route('home') }}" class="block nav-link py-2">Home</a>
             <a href="{{ route('products.index') }}" class="block nav-link py-2">Products</a>
             <a href="{{ route('order.track') }}" class="block nav-link py-2">Track Order</a>
             <a href="javascript:void(0)" onclick="toggleCartDrawer(true)" class="block nav-link py-2">Cart ({{ $cartCount }})</a>
+            @guest
+                <a href="{{ route('login') }}" class="block nav-link py-2">Login</a>
+                <a href="{{ route('register') }}" class="block nav-link py-2">Register</a>
+            @else
+                @if(auth()->user()->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}" class="block nav-link py-2">Admin Console</a>
+                @else
+                    <a href="{{ route('dashboard') }}" class="block nav-link py-2">My Dashboard</a>
+                @endif
+                <a href="javascript:void(0)" onclick="document.getElementById('logoutForm').submit()" class="block nav-link py-2 text-rose-300">Logout</a>
+            @endguest
         </div>
     </div>
 </nav>
+
+<form id="logoutForm" action="{{ route('logout') }}" method="POST" class="hidden">
+    @csrf
+</form>
 
 @if(session('success'))
 <div class="flash-success animate-fadein px-4 py-3 text-sm font-medium rounded-lg mx-4 mt-4 max-w-4xl lg:mx-auto">✅ {{ session('success') }}</div>

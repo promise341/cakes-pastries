@@ -4,6 +4,9 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // Home
@@ -28,3 +31,19 @@ Route::get('/checkout/verify', [CheckoutController::class, 'verify'])->name('che
 
 // Order tracking
 Route::get('/track-order', [CheckoutController::class, 'track'])->name('order.track');
+
+// Authentication
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register']);
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// User Dashboard
+Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard')->middleware('auth');
+
+// Admin Dashboard
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::post('/orders/{order}/status', [AdminDashboardController::class, 'updateStatus'])->name('orders.status');
+});
