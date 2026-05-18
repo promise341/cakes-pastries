@@ -32,8 +32,16 @@ class Product extends Model
 
     public function getImageUrlAttribute(): string
     {
-        if ($this->image && file_exists(storage_path('app/public/' . $this->image))) {
-            return asset('storage/' . $this->image);
+        if ($this->image) {
+            if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+                return $this->image;
+            }
+            if (file_exists(public_path($this->image))) {
+                return asset($this->image);
+            }
+            if (file_exists(storage_path('app/public/' . $this->image))) {
+                return asset('storage/' . $this->image);
+            }
         }
         return 'https://placehold.co/600x400/F2C4B0/6B3F2A?text=🎂';
     }
@@ -41,5 +49,20 @@ class Product extends Model
     public function isInStock(): bool
     {
         return $this->status === 'active' && $this->stock > 0;
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function getAverageRatingAttribute(): float
+    {
+        return round($this->reviews()->avg('rating') ?? 5.0, 1);
+    }
+
+    public function getReviewsCountAttribute(): int
+    {
+        return $this->reviews()->count();
     }
 }

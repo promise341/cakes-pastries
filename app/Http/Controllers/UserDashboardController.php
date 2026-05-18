@@ -26,6 +26,9 @@ class UserDashboardController extends Controller
             ->whereIn('status', ['paid', 'processing'])
             ->count();
 
-        return view('dashboard.user', compact('orders', 'totalOrders', 'totalSpent', 'pendingDeliveries'));
+        $wishlists = $user->wishlists()->with('category')->get();
+        $addresses = $user->addresses()->orderBy('is_default', 'desc')->get();
+
+        return view('dashboard.user', compact('orders', 'totalOrders', 'totalSpent', 'pendingDeliveries', 'wishlists', 'addresses'));
     }
 }

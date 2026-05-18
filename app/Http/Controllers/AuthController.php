@@ -80,4 +80,19 @@ class AuthController extends Controller
 
         return redirect()->route('home')->with('success', 'Successfully logged out.');
     }
+
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function showResetPassword()
+    {
+        return view('auth.reset-password');
+    }
+
+    public function showVerifyEmail()
+    {
+        return view('auth.verify-email');
+    }
 }

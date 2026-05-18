@@ -24,7 +24,19 @@ class CheckoutController extends Controller
 
         $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
 
-        return view('checkout.index', compact('cart', 'total'));
+        $discount = 0.00;
+        $coupon = session()->get('coupon');
+
+        if ($coupon) {
+            $couponModel = \App\Models\Coupon::where('code', $coupon['code'])->first();
+            if ($couponModel && $couponModel->isValid()) {
+                $discount = $couponModel->calculateDiscount($total);
+            } else {
+                session()->forget('coupon');
+            }
+        }
+
+        return view('checkout.index', compact('cart', 'total', 'discount'));
     }
 
     public function store(Request $request)
@@ -59,19 +71,35 @@ class CheckoutController extends Controller
             $items[$id]      = array_merge($item, ['price' => $product->price]);
         }
 
+        // Compute discount from applied coupon code
+        $discount = 0.00;
+        $couponCode = null;
+        $couponSession = session()->get('coupon');
+        if ($couponSession) {
+            $couponModel = \App\Models\Coupon::where('code', $couponSession['code'])->first();
+            if ($couponModel && $couponModel->isValid()) {
+                $discount = $couponModel->calculateDiscount($total);
+                $couponCode = $couponModel->code;
+            }
+        }
+
+        $finalAmount = max(0.00, $total - $discount);
+
         try {
-            $order = DB::transaction(function () use ($request, $total, $items) {
+            $order = DB::transaction(function () use ($request, $finalAmount, $discount, $couponCode, $items) {
                 // Create the order
                 $order = Order::create([
-                    'customer_name' => $request->customer_name,
-                    'email'         => $request->email,
-                    'phone'         => $request->phone,
-                    'address'       => $request->address,
-                    'city'          => $request->city,
-                    'notes'         => $request->notes,
-                    'total_amount'  => $total,
-                    'status'        => 'pending',
-                    'payment_status'=> 'unpaid',
+                    'customer_name'   => $request->customer_name,
+                    'email'           => $request->email,
+                    'phone'           => $request->phone,
+                    'address'         => $request->address,
+                    'city'            => $request->city,
+                    'notes'           => $request->notes,
+                    'coupon_code'     => $couponCode,
+                    'discount_amount' => $discount,
+                    'total_amount'    => $finalAmount,
+                    'status'          => 'pending',
+                    'payment_status'  => 'unpaid',
                 ]);
 
                 foreach ($items as $id => $item) {
@@ -91,11 +119,41 @@ class CheckoutController extends Controller
             return back()->with('error', 'An error occurred while creating your order. Please try again.');
         }
 
+        // Clear applied coupon from session upon successful payment redirection initiation
+        session()->forget('coupon');
+
+        if ($request->payment_gateway === 'stripe') {
+            DB::transaction(function () use ($order) {
+                $order->update([
+                    'status'            => 'paid',
+                    'payment_status'    => 'paid',
+                    'payment_reference' => 'stripe_mock_' . uniqid(),
+                ]);
+
+                foreach ($order->items as $item) {
+                    if ($item->product) {
+                        $product = Product::where('id', $item->product_id)->lockForUpdate()->first();
+                        $product->decrement('stock', min($item->quantity, $product->stock));
+                    }
+                }
+            });
+
+            // Send confirmation email
+            try {
+                Mail::to($order->email)->send(new OrderConfirmation($order));
+            } catch (\Exception $e) {
+                Log::error('Order email failed: ' . $e->getMessage());
+            }
+
+            session()->forget('cart');
+            return view('checkout.success', compact('order'))->with('success', 'Stripe simulated checkouts processed successfully!');
+        }
+
         // Initialize Paystack transaction
         $response = Http::withToken(config('paystack.secretKey'))
             ->post('https://api.paystack.co/transaction/initialize', [
                 'email'        => $request->email,
-                'amount'       => (int) ($total * 100), // Kobo
+                'amount'       => (int) ($finalAmount * 100), // Kobo
                 'reference'    => $order->order_number,
                 'callback_url' => route('checkout.verify'),
                 'metadata'     => [

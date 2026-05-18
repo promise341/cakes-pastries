@@ -19,6 +19,7 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         body { font-family: 'DM Sans', sans-serif; background-color: #FDF6EC; }
         .font-display { font-family: 'Playfair Display', Georgia, serif; }
@@ -140,7 +141,9 @@
                     <li><a href="{{ route('home') }}" class="hover:text-white transition-colors">Home</a></li>
                     <li><a href="{{ route('products.index') }}" class="hover:text-white transition-colors">All Products</a></li>
                     <li><a href="{{ route('order.track') }}" class="hover:text-white transition-colors">Track Order</a></li>
-                    <li><a href="{{ route('cart.index') }}" class="hover:text-white transition-colors">Cart</a></li>
+                    <li><a href="{{ route('about') }}" class="hover:text-white transition-colors">Our Story</a></li>
+                    <li><a href="{{ route('contact') }}" class="hover:text-white transition-colors">Contact Us</a></li>
+                    <li><a href="{{ route('faq') }}" class="hover:text-white transition-colors">FAQ Support</a></li>
                 </ul>
             </div>
             <div>

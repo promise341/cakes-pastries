@@ -30,4 +30,19 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->is_admin === true;
     }
+
+    public function wishlists()
+    {
+        return $this->belongsToMany(Product::class, 'wishlists')->withTimestamps();
+    }
+
+    public function addresses()
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
 }

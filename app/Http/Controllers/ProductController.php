@@ -24,6 +24,14 @@ class ProductController extends Controller
             );
         }
 
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', $request->price_min);
+        }
+
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', $request->price_max);
+        }
+
         if ($request->filled('sort')) {
             match($request->sort) {
                 'price_asc'  => $query->orderBy('price', 'asc'),
@@ -45,6 +53,8 @@ class ProductController extends Controller
     {
         abort_if($product->status !== 'active', 404);
 
+        $product->load(['reviews.user']);
+
         $related = Product::with('category')
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
@@ -53,5 +63,21 @@ class ProductController extends Controller
             ->get();
 
         return view('products.show', compact('product', 'related'));
+    }
+
+    public function storeReview(Request $request, Product $product)
+    {
+        $request->validate([
+            'rating'  => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        $product->reviews()->create([
+            'user_id' => auth()->id(),
+            'rating'  => $request->rating,
+            'comment' => $request->comment,
+        ]);
+
+        return back()->with('success', 'Thank you! Your review for ' . $product->name . ' has been published.');
     }
 }

@@ -93,12 +93,46 @@
                         @endforeach
                     </div>
 
-                    <div class="border-t border-[#F5E6D0]/50 pt-4 flex justify-between items-center">
-                        <div>
-                            <span class="text-[10px] uppercase tracking-wider text-[#6B3A1F]/60 font-semibold block">Total Amount</span>
-                            <span class="text-xs text-emerald-600 font-semibold block">✓ Delivery fee included</span>
+                    {{-- Coupon Apply Block --}}
+                    <div class="border-t border-[#F5E6D0]/50 pt-4 space-y-3">
+                        @if(session()->has('coupon'))
+                            <div class="flex justify-between items-center text-xs font-semibold bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100">
+                                <span>Code: <span class="font-bold uppercase">{{ session('coupon.code') }}</span></span>
+                                <form action="{{ route('cart.coupon.remove') }}" method="POST">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-[10px] text-rose-500 hover:underline">Remove</button>
+                                </form>
+                            </div>
+                        @else
+                            <form action="{{ route('cart.coupon.apply') }}" method="POST" class="flex gap-2">
+                                @csrf
+                                <input type="text" name="coupon_code" placeholder="Enter coupon..." required
+                                       class="w-full px-3 py-2 text-xs font-bold uppercase rounded-xl bg-[#FDF6EC] border border-[#F5E6D0]/40 text-[#3D1A08] focus:outline-none focus:ring-2 focus:ring-rose-500">
+                                <button type="submit" class="px-4 py-2 bg-[#3D1A08] text-[#F5E6D0] hover:bg-[#5C2B14] rounded-xl text-[10px] uppercase tracking-wider font-extrabold shadow-sm">
+                                    Apply
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+
+                    <div class="border-t border-[#F5E6D0]/50 pt-4 space-y-2">
+                        <div class="flex justify-between text-xs font-semibold text-[#6B3A1F]">
+                            <span>Subtotal</span>
+                            <span>₦{{ number_format($total, 0) }}</span>
                         </div>
-                        <span class="font-display font-bold text-2xl text-rose-600">₦{{ number_format($total, 0) }}</span>
+                        @if($discount > 0)
+                        <div class="flex justify-between text-xs font-bold text-emerald-600">
+                            <span>Discount</span>
+                            <span>- ₦{{ number_format($discount, 0) }}</span>
+                        </div>
+                        @endif
+                        <div class="flex justify-between items-center border-t border-[#FDF6EC] pt-2">
+                            <div>
+                                <span class="text-[10px] uppercase tracking-wider text-[#6B3A1F]/60 font-semibold block">Total Due</span>
+                                <span class="text-[10px] text-emerald-600 font-bold block">✓ Delivery fee included</span>
+                            </div>
+                            <span class="font-display font-bold text-2xl text-rose-600">₦{{ number_format(max(0, $total - $discount), 0) }}</span>
+                        </div>
                     </div>
 
                     <div class="space-y-3 pt-2">

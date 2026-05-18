@@ -11,7 +11,20 @@ class CartController extends Controller
     {
         $cart  = session()->get('cart', []);
         $total = collect($cart)->sum(fn($item) => $item['price'] * $item['quantity']);
-        return view('cart.index', compact('cart', 'total'));
+
+        $discount = 0.00;
+        $coupon = session()->get('coupon');
+
+        if ($coupon) {
+            $couponModel = \App\Models\Coupon::where('code', $coupon['code'])->first();
+            if ($couponModel && $couponModel->isValid()) {
+                $discount = $couponModel->calculateDiscount($total);
+            } else {
+                session()->forget('coupon');
+            }
+        }
+
+        return view('cart.index', compact('cart', 'total', 'discount'));
     }
 
     public function add(Request $request, Product $product)
@@ -91,5 +104,32 @@ class CartController extends Controller
         $cart = session()->get('cart', []);
         $count = collect($cart)->sum('quantity');
         return response()->json(['count' => $count]);
+    }
+
+    public function applyCoupon(Request $request)
+    {
+        $request->validate([
+            'coupon_code' => 'required|string',
+        ]);
+
+        $coupon = \App\Models\Coupon::where('code', $request->coupon_code)->first();
+
+        if (!$coupon || !$coupon->isValid()) {
+            return back()->with('error', 'Invalid or expired coupon code.');
+        }
+
+        session()->put('coupon', [
+            'code'  => $coupon->code,
+            'type'  => $coupon->type,
+            'value' => $coupon->value,
+        ]);
+
+        return back()->with('success', 'Coupon "' . $coupon->code . '" applied successfully!');
+    }
+
+    public function removeCoupon()
+    {
+        session()->forget('coupon');
+        return back()->with('success', 'Coupon removed.');
     }
 }
