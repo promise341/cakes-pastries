@@ -35,7 +35,7 @@ class Product extends Model
         if ($this->image && file_exists(storage_path('app/public/' . $this->image))) {
             return asset('storage/' . $this->image);
         }
-        return asset('images/placeholder.png');
+        return 'https://placehold.co/600x400/F2C4B0/6B3F2A?text=🎂';
     }
 
     public function isInStock(): bool

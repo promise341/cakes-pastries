@@ -7,6 +7,16 @@
     <title>@yield('title', 'Cakes & Pastries') – Fresh Baked with Love</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        // Silence Tailwind Play CDN production warning in console
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+                return;
+            }
+            originalWarn.apply(console, args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'DM Sans', sans-serif; background-color: #FDF6EC; }

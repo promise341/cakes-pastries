@@ -58,7 +58,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         @foreach($featured as $product)
-        @include('components.product-card', ['product' => $product])
+        @include('products._card', ['product' => $product])
         @endforeach
     </div>
 </section>
