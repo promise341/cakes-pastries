@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OrderApiController extends Controller
 {
@@ -36,6 +37,13 @@ class OrderApiController extends Controller
                 ], 422);
             }
 
+            if ($product->stock < $item['quantity']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Only {$product->stock} units of '{$product->name}' are left in stock.",
+                ], 422);
+            }
+
             $subtotal = $product->price * $item['quantity'];
             $total   += $subtotal;
             $items[]  = [
@@ -46,20 +54,31 @@ class OrderApiController extends Controller
             ];
         }
 
-        $order = Order::create([
-            'customer_name' => $request->customer_name,
-            'email'         => $request->email,
-            'phone'         => $request->phone,
-            'address'       => $request->address,
-            'city'          => $request->city,
-            'notes'         => $request->notes ?? null,
-            'total_amount'  => $total,
-            'status'        => 'pending',
-            'payment_status'=> 'unpaid',
-        ]);
+        try {
+            $order = DB::transaction(function () use ($request, $total, $items) {
+                $order = Order::create([
+                    'customer_name' => $request->customer_name,
+                    'email'         => $request->email,
+                    'phone'         => $request->phone,
+                    'address'       => $request->address,
+                    'city'          => $request->city,
+                    'notes'         => $request->notes ?? null,
+                    'total_amount'  => $total,
+                    'status'        => 'pending',
+                    'payment_status'=> 'unpaid',
+                ]);
 
-        foreach ($items as $item) {
-            OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                foreach ($items as $item) {
+                    OrderItem::create(array_merge($item, ['order_id' => $order->id]));
+                }
+
+                return $order;
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while placing the order.',
+            ], 500);
         }
 
         return response()->json([

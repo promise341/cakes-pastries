@@ -61,7 +61,7 @@
 
             <div class="flex items-center gap-4">
                 @php $cartCount = collect(session('cart', []))->sum('quantity'); @endphp
-                <a href="{{ route('cart.index') }}" class="relative" style="color:#F5E6D0">
+                <a href="javascript:void(0)" onclick="toggleCartDrawer(true)" class="relative hover:text-rose-400 transition-colors" style="color:#F5E6D0">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                     </svg>
@@ -80,7 +80,7 @@
             <a href="{{ route('home') }}" class="block nav-link py-2">Home</a>
             <a href="{{ route('products.index') }}" class="block nav-link py-2">Products</a>
             <a href="{{ route('order.track') }}" class="block nav-link py-2">Track Order</a>
-            <a href="{{ route('cart.index') }}" class="block nav-link py-2">Cart ({{ $cartCount }})</a>
+            <a href="javascript:void(0)" onclick="toggleCartDrawer(true)" class="block nav-link py-2">Cart ({{ $cartCount }})</a>
         </div>
     </div>
 </nav>
@@ -129,6 +129,87 @@
     </div>
 </footer>
 
+<!-- Cart Drawer Overlay -->
+<div id="cartDrawerOverlay" class="fixed inset-0 bg-[#3D1A08]/60 backdrop-blur-xs z-50 hidden transition-opacity duration-300 opacity-0" onclick="toggleCartDrawer(false)"></div>
+
+<!-- Cart Drawer Panel -->
+<div id="cartDrawer" class="fixed top-0 right-0 bottom-0 w-full sm:w-[450px] bg-[#FDF6EC] z-50 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-[#F5E6D0]">
+    <!-- Drawer Header -->
+    <div class="p-6 border-b border-[#F5E6D0] bg-[#3D1A08] text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-xl">🛒</span>
+            <h3 class="font-display font-bold text-lg">Your Cart</h3>
+        </div>
+        <button onclick="toggleCartDrawer(false)" class="text-[#F5E6D0] hover:text-white transition-colors text-2xl font-bold">&times;</button>
+    </div>
+
+    <!-- Drawer Content (Scrollable) -->
+    <div class="flex-grow overflow-y-auto p-6 space-y-4">
+        @php
+            $drawerCart = session('cart', []);
+            $drawerTotal = collect($drawerCart)->sum(fn($item) => $item['price'] * $item['quantity']);
+        @endphp
+
+        @if(empty($drawerCart))
+            <div class="flex flex-col items-center justify-center h-full text-center opacity-60 py-12">
+                <span class="text-5xl mb-3">🧁</span>
+                <p class="font-medium text-[#3D1A08]">Your cart is empty</p>
+                <p class="text-xs mt-1">Add some delicious treats to start!</p>
+            </div>
+        @else
+            @foreach($drawerCart as $id => $item)
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-[#F5E6D0]/40 flex gap-4 items-center">
+                    <img src="{{ $item['image'] }}" class="w-16 h-16 rounded-lg object-cover bg-[#FDF6EC]" onerror="this.src='https://placehold.co/100?text=🎂'">
+                    <div class="flex-grow min-w-0">
+                        <h4 class="font-bold text-sm text-[#3D1A08] truncate">{{ $item['name'] }}</h4>
+                        <p class="text-xs font-semibold text-rose-600 mt-0.5">₦{{ number_format($item['price'], 0) }}</p>
+                        
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="flex items-center gap-3">
+                                <form action="{{ route('cart.update', $id) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="quantity" value="{{ $item['quantity'] - 1 }}">
+                                    <button type="submit" {{ $item['quantity'] <= 1 ? 'disabled' : '' }} class="w-6 h-6 flex items-center justify-center rounded-full border border-[#F5E6D0] text-xs font-bold text-[#6B3A1F] hover:bg-[#FDF6EC] disabled:opacity-30">-</button>
+                                </form>
+                                
+                                <span class="text-xs font-bold text-[#3D1A08]">{{ $item['quantity'] }}</span>
+
+                                <form action="{{ route('cart.update', $id) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="quantity" value="{{ $item['quantity'] + 1 }}">
+                                    <button type="submit" class="w-6 h-6 flex items-center justify-center rounded-full border border-[#F5E6D0] text-xs font-bold text-[#6B3A1F] hover:bg-[#FDF6EC]">+</button>
+                                </form>
+                            </div>
+
+                            <form action="{{ route('cart.remove', $id) }}" method="POST" class="ml-auto">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-xs text-rose-500 hover:text-rose-700 transition-colors font-medium">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        @endif
+    </div>
+
+    <!-- Drawer Footer -->
+    @if(!empty($drawerCart))
+    <div class="p-6 border-t border-[#F5E6D0] bg-white space-y-4">
+        <div class="flex items-center justify-between">
+            <span class="text-xs uppercase tracking-wider text-[#6B3A1F]/60 font-semibold">Total Amount</span>
+            <span class="font-display font-bold text-2xl text-rose-600">₦{{ number_format($drawerTotal, 0) }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-2">
+            <a href="{{ route('cart.index') }}" class="btn-outline text-center justify-center py-3 text-xs tracking-wider uppercase font-bold rounded-full">View Cart</a>
+            <a href="{{ route('checkout.index') }}" class="btn-primary text-center justify-center py-3 text-xs tracking-wider uppercase font-bold rounded-full shadow-md hover:shadow-lg">Checkout</a>
+        </div>
+    </div>
+    @endif
+</div>
+
 <script>
     document.getElementById('mobileMenuBtn').addEventListener('click', () => {
         document.getElementById('mobileMenu').classList.toggle('hidden');
@@ -140,6 +221,24 @@
             setTimeout(() => el.remove(), 500);
         });
     }, 4000);
+
+    function toggleCartDrawer(open) {
+        const overlay = document.getElementById('cartDrawerOverlay');
+        const drawer = document.getElementById('cartDrawer');
+        if (open) {
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('opacity-100');
+                drawer.classList.remove('translate-x-full');
+            }, 10);
+        } else {
+            overlay.classList.remove('opacity-100');
+            drawer.classList.add('translate-x-full');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 300);
+        }
+    }
 </script>
 @yield('scripts')
 </body>

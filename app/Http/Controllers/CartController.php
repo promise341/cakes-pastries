@@ -27,8 +27,15 @@ class CartController extends Controller
         $id       = $product->id;
 
         if (isset($cart[$id])) {
-            $cart[$id]['quantity'] += $quantity;
+            $newQuantity = $cart[$id]['quantity'] + $quantity;
+            if ($product->stock < $newQuantity) {
+                return back()->with('error', "Cannot add more. Only {$product->stock} units of '{$product->name}' are left in stock.");
+            }
+            $cart[$id]['quantity'] = $newQuantity;
         } else {
+            if ($product->stock < $quantity) {
+                return back()->with('error', "Only {$product->stock} units of '{$product->name}' are left in stock.");
+            }
             $cart[$id] = [
                 'id'       => $product->id,
                 'name'     => $product->name,
@@ -45,6 +52,15 @@ class CartController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate(['quantity' => 'required|integer|min:1|max:50']);
+
+        $product = Product::find($id);
+        if (!$product) {
+            return back()->with('error', 'Product not found.');
+        }
+
+        if ($product->stock < $request->quantity) {
+            return back()->with('error', "Only {$product->stock} units of '{$product->name}' are left in stock.");
+        }
 
         $cart = session()->get('cart', []);
 

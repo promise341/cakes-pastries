@@ -2,89 +2,110 @@
 @section('title', 'Your Cart')
 
 @section('content')
-<div class="max-w-5xl mx-auto px-4 py-10">
-    <h1 class="font-display text-4xl font-bold mb-8" style="color:var(--charcoal)">Your Cart</h1>
+<div class="max-w-5xl mx-auto px-4 py-12">
+    <div class="flex items-center gap-3 mb-10 border-b border-[#F5E6D0]/50 pb-6">
+        <span class="text-3xl">🛒</span>
+        <div>
+            <h1 class="font-display text-3xl font-extrabold text-[#3D1A08]">Shopping Cart</h1>
+            <p class="text-xs text-[#6B3A1F]/70 mt-1">Review your freshly baked treats before checking out.</p>
+        </div>
+    </div>
 
     @if(empty($cart))
-        <div class="text-center py-20 bg-white rounded-2xl shadow-sm">
-            <div class="text-6xl mb-4">🛒</div>
-            <h2 class="font-display text-2xl font-bold mb-2">Your cart is empty</h2>
-            <p class="opacity-60 mb-6">Looks like you haven't added anything yet.</p>
-            <a href="{{ route('products.index') }}" class="btn-primary">Browse Products</a>
+        <div class="text-center py-20 bg-white rounded-3xl border border-[#F5E6D0]/40 shadow-xs max-w-lg mx-auto">
+            <div class="text-6xl mb-5">🧁</div>
+            <h2 class="font-display text-2xl font-bold text-[#3D1A08] mb-2">Your cart is empty</h2>
+            <p class="text-sm text-[#6B3A1F]/70 mb-8 max-w-xs mx-auto">Looks like you haven't added any of our delicious creations to your cart yet.</p>
+            <a href="{{ route('products.index') }}" class="btn-primary py-3 px-8 shadow-md rounded-full text-sm">
+                Browse Delicacies
+            </a>
         </div>
     @else
         <div class="flex flex-col lg:flex-row gap-8">
 
             {{-- Cart Items --}}
-            <div class="flex-1 space-y-4">
+            <div class="flex-grow space-y-4">
                 @foreach($cart as $id => $item)
-                <div class="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-5">
+                <div class="bg-white rounded-2xl border border-[#F5E6D0]/40 shadow-xs p-5 flex flex-col sm:flex-row items-center gap-5 transition-all duration-200 hover:shadow-sm">
                     <img src="{{ $item['image'] }}"
                          alt="{{ $item['name'] }}"
-                         class="w-20 h-20 rounded-xl object-cover shrink-0"
-                         onerror="this.src='https://placehold.co/80x80/F2C4B0/6B3F2A?text=🎂'">
+                         class="w-20 h-20 rounded-xl object-cover shrink-0 bg-[#FDF6EC]"
+                         onerror="this.src='https://placehold.co/100?text=🎂'">
 
-                    <div class="flex-1 min-w-0">
-                        <h3 class="font-display font-bold truncate" style="color:var(--charcoal)">{{ $item['name'] }}</h3>
-                        <p class="text-sm" style="color:var(--rose)">₦{{ number_format($item['price'], 0) }} each</p>
+                    <div class="flex-grow min-w-0 text-center sm:text-left">
+                        <h3 class="font-display font-bold text-base text-[#3D1A08] truncate">{{ $item['name'] }}</h3>
+                        <p class="text-xs font-semibold text-rose-600 mt-1">₦{{ number_format($item['price'], 0) }} each</p>
                     </div>
 
                     {{-- Quantity form --}}
                     <form action="{{ route('cart.update', $id) }}" method="POST" class="flex items-center gap-2">
                         @csrf @method('PATCH')
-                        <div class="flex items-center border rounded-full overflow-hidden" style="border-color:var(--blush)">
+                        <div class="flex items-center border border-[#F5E6D0] rounded-full overflow-hidden bg-white shadow-inner">
                             <button type="button" onclick="adjustQty(this, -1)"
-                                    class="px-3 py-1 hover:bg-rose-50 font-bold">−</button>
+                                    class="w-8 h-8 flex items-center justify-center font-extrabold text-[#6B3A1F] hover:bg-[#FDF6EC] transition-colors">−</button>
                             <input type="number" name="quantity" value="{{ $item['quantity'] }}"
-                                   min="1" max="50" onchange="this.form.submit()"
-                                   class="w-12 text-center border-none focus:outline-none text-sm font-bold">
+                                   min="1" max="50" onchange="this.form.submit()" readonly
+                                   class="w-10 text-center bg-transparent border-none focus:outline-none text-xs font-bold text-[#3D1A08]">
                             <button type="button" onclick="adjustQty(this, 1)"
-                                    class="px-3 py-1 hover:bg-rose-50 font-bold">+</button>
+                                    class="w-8 h-8 flex items-center justify-center font-extrabold text-[#6B3A1F] hover:bg-[#FDF6EC] transition-colors">+</button>
                         </div>
                     </form>
 
-                    <p class="font-bold w-24 text-right" style="color:var(--charcoal)">
-                        ₦{{ number_format($item['price'] * $item['quantity'], 0) }}
-                    </p>
+                    <div class="w-24 text-center sm:text-right shrink-0">
+                        <p class="text-[10px] uppercase tracking-wider text-[#6B3A1F]/60">Subtotal</p>
+                        <p class="font-display font-bold text-lg text-[#3D1A08] mt-0.5">
+                            ₦{{ number_format($item['price'] * $item['quantity'], 0) }}
+                        </p>
+                    </div>
 
-                    <form action="{{ route('cart.remove', $id) }}" method="POST">
+                    <form action="{{ route('cart.remove', $id) }}" method="POST" class="shrink-0">
                         @csrf @method('DELETE')
-                        <button type="submit" class="text-red-400 hover:text-red-600 transition-colors text-lg" title="Remove">✕</button>
+                        <button type="submit" class="w-8 h-8 flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-full transition-all" title="Remove Item">✕</button>
                     </form>
                 </div>
                 @endforeach
 
-                <form action="{{ route('cart.clear') }}" method="POST" class="text-right">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="text-sm text-red-500 hover:underline">Clear cart</button>
-                </form>
+                <div class="flex justify-between items-center pt-2">
+                    <a href="{{ route('products.index') }}" class="text-xs font-bold uppercase tracking-widest text-[#6B3A1F]/70 hover:text-rose-600 transition-colors">
+                        ← Continue Shopping
+                    </a>
+                    
+                    <form action="{{ route('cart.clear') }}" method="POST">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-xs font-bold uppercase tracking-widest text-rose-500 hover:text-rose-700 transition-colors">
+                            Clear Entire Cart
+                        </button>
+                    </form>
+                </div>
             </div>
 
             {{-- Order Summary --}}
-            <div class="lg:w-72 shrink-0">
-                <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-24">
-                    <h2 class="font-display text-xl font-bold mb-5" style="color:var(--charcoal)">Order Summary</h2>
+            <div class="lg:w-80 shrink-0">
+                <div class="bg-white rounded-3xl border border-[#F5E6D0]/40 shadow-xs p-6 sticky top-24 space-y-6">
+                    <h2 class="font-display text-xl font-extrabold text-[#3D1A08] border-b border-[#F5E6D0]/50 pb-4">Order Summary</h2>
 
-                    <div class="space-y-2 text-sm mb-4">
+                    <div class="space-y-3 text-xs max-h-48 overflow-y-auto pr-1">
                         @foreach($cart as $item)
-                        <div class="flex justify-between">
-                            <span class="opacity-70">{{ $item['name'] }} × {{ $item['quantity'] }}</span>
-                            <span>₦{{ number_format($item['price'] * $item['quantity'], 0) }}</span>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#6B3A1F]/80 truncate pr-4">{{ $item['name'] }} <span class="font-bold text-[#3D1A08]">× {{ $item['quantity'] }}</span></span>
+                            <span class="font-bold text-[#3D1A08] shrink-0">₦{{ number_format($item['price'] * $item['quantity'], 0) }}</span>
                         </div>
                         @endforeach
                     </div>
 
-                    <div class="border-t pt-4 flex justify-between font-bold text-lg mb-6" style="border-color:var(--blush)">
-                        <span>Total</span>
-                        <span style="color:var(--rose)">₦{{ number_format($total, 0) }}</span>
+                    <div class="border-t border-[#F5E6D0]/50 pt-4 flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-[#6B3A1F]/60 font-semibold block">Total Amount</span>
+                            <span class="text-xs text-emerald-600 font-semibold block">✓ Delivery fee included</span>
+                        </div>
+                        <span class="font-display font-bold text-2xl text-rose-600">₦{{ number_format($total, 0) }}</span>
                     </div>
 
-                    <a href="{{ route('checkout.index') }}" class="btn-primary w-full text-center block">
-                        Proceed to Checkout →
-                    </a>
-                    <a href="{{ route('products.index') }}" class="block text-center text-sm mt-3 opacity-60 hover:opacity-100">
-                        ← Continue Shopping
-                    </a>
+                    <div class="space-y-3 pt-2">
+                        <a href="{{ route('checkout.index') }}" class="btn-primary w-full py-3.5 text-center justify-center font-bold tracking-wider uppercase text-xs rounded-full shadow-md hover:shadow-lg transition-all block">
+                            Proceed to Checkout
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -92,7 +113,7 @@
 </div>
 @endsection
 
-@push('scripts')
+@section('scripts')
 <script>
     function adjustQty(btn, delta) {
         const input = btn.parentElement.querySelector('input[name="quantity"]');
@@ -101,4 +122,4 @@
         input.form.submit();
     }
 </script>
-@endpush
+@endsection

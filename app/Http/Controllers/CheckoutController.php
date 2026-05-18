@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -43,7 +44,7 @@ class CheckoutController extends Controller
             return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
         }
 
-        // Verify product prices server-side
+        // Verify product prices and stock levels server-side
         $total = 0;
         $items = [];
         foreach ($cart as $id => $item) {
@@ -51,31 +52,43 @@ class CheckoutController extends Controller
             if (!$product || !$product->isInStock()) {
                 return back()->with('error', "'{$item['name']}' is no longer available.");
             }
+            if ($product->stock < $item['quantity']) {
+                return back()->with('error', "Only {$product->stock} units of '{$item['name']}' are left in stock.");
+            }
             $total          += $product->price * $item['quantity'];
             $items[$id]      = array_merge($item, ['price' => $product->price]);
         }
 
-        // Create the order
-        $order = Order::create([
-            'customer_name' => $request->customer_name,
-            'email'         => $request->email,
-            'phone'         => $request->phone,
-            'address'       => $request->address,
-            'city'          => $request->city,
-            'notes'         => $request->notes,
-            'total_amount'  => $total,
-            'status'        => 'pending',
-            'payment_status'=> 'unpaid',
-        ]);
+        try {
+            $order = DB::transaction(function () use ($request, $total, $items) {
+                // Create the order
+                $order = Order::create([
+                    'customer_name' => $request->customer_name,
+                    'email'         => $request->email,
+                    'phone'         => $request->phone,
+                    'address'       => $request->address,
+                    'city'          => $request->city,
+                    'notes'         => $request->notes,
+                    'total_amount'  => $total,
+                    'status'        => 'pending',
+                    'payment_status'=> 'unpaid',
+                ]);
 
-        foreach ($items as $id => $item) {
-            OrderItem::create([
-                'order_id'     => $order->id,
-                'product_id'   => $id,
-                'product_name' => $item['name'],
-                'quantity'     => $item['quantity'],
-                'price'        => $item['price'],
-            ]);
+                foreach ($items as $id => $item) {
+                    OrderItem::create([
+                        'order_id'     => $order->id,
+                        'product_id'   => $id,
+                        'product_name' => $item['name'],
+                        'quantity'     => $item['quantity'],
+                        'price'        => $item['price'],
+                    ]);
+                }
+
+                return $order;
+            });
+        } catch (\Exception $e) {
+            Log::error('Order creation transaction failed: ' . $e->getMessage());
+            return back()->with('error', 'An error occurred while creating your order. Please try again.');
         }
 
         // Initialize Paystack transaction
@@ -93,7 +106,8 @@ class CheckoutController extends Controller
             ]);
 
         if (!$response->successful() || !$response->json('status')) {
-            Log::error('Paystack init failed', $response->json());
+            Log::error('Paystack init failed', $response->json() ?? []);
+            // Atomic cleanup
             $order->delete();
             return back()->with('error', 'Payment initialization failed. Please try again.');
         }
@@ -128,25 +142,48 @@ class CheckoutController extends Controller
             return redirect()->route('home')->with('error', 'Order not found.');
         }
 
-        if ($order->payment_status !== 'paid') {
-            $order->update([
-                'status'            => 'paid',
-                'payment_status'    => 'paid',
-                'payment_reference' => $reference,
-            ]);
+        // Financial Integrity Safeguard: Verify paid amount matches order total
+        $paidAmount = $data['amount'] / 100; // Paystack is in Kobo
+        if (abs($paidAmount - $order->total_amount) > 0.01) {
+            Log::critical("Payment amount mismatch for Order #{$order->order_number}: Expected {$order->total_amount}, Paid {$paidAmount}");
+            return redirect()->route('home')->with('error', 'Payment amount mismatch. Order validation failed.');
+        }
 
-            // Send confirmation email
+        if ($order->payment_status !== 'paid') {
+            try {
+                DB::transaction(function () use ($order, $reference) {
+                    // Lock order row for update to prevent concurrent updates
+                    $lockedOrder = Order::where('id', $order->id)->lockForUpdate()->first();
+                    
+                    if ($lockedOrder->payment_status !== 'paid') {
+                        $lockedOrder->update([
+                            'status'            => 'paid',
+                            'payment_status'    => 'paid',
+                            'payment_reference' => $reference,
+                        ]);
+
+                        // Decrement stock and verify stock levels
+                        foreach ($lockedOrder->items as $item) {
+                            if ($item->product) {
+                                $product = Product::where('id', $item->product_id)->lockForUpdate()->first();
+                                if ($product->stock < $item->quantity) {
+                                    Log::critical("Oversold product during checkout verification: Product ID {$product->id}, requested {$item->quantity}, stock {$product->stock}");
+                                }
+                                $product->decrement('stock', min($item->quantity, $product->stock));
+                            }
+                        }
+                    }
+                });
+            } catch (\Exception $e) {
+                Log::error('Order verify transaction failed: ' . $e->getMessage());
+                return redirect()->route('home')->with('error', 'An error occurred during verification.');
+            }
+
+            // Send confirmation email outside the transaction block to prevent hanging lock
             try {
                 Mail::to($order->email)->send(new OrderConfirmation($order));
             } catch (\Exception $e) {
                 Log::error('Order email failed: ' . $e->getMessage());
-            }
-
-            // Decrement stock
-            foreach ($order->items as $item) {
-                if ($item->product) {
-                    $item->product->decrement('stock', $item->quantity);
-                }
             }
         }
 
